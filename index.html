@@ -23,18 +23,12 @@
       max-width: 320px;
     }
 
-    #list, #sessions, #searchResults {
+    #list, #searchResults {
       border: 1px solid #ccc;
       padding: 10px;
       margin-top: 10px;
       max-height: 300px;
       overflow-y: auto;
-    }
-
-    .card {
-      border: 1px solid #ddd;
-      padding: 10px;
-      margin-bottom: 10px;
     }
 
     .manual {
@@ -47,6 +41,12 @@
       font-weight: bold;
     }
 
+    .card {
+      border: 1px solid #ddd;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+
     #status {
       font-weight: bold;
     }
@@ -55,7 +55,7 @@
 
 <body>
 
-<h2>Medication Scanner System</h2>
+<h2>Medication Scanner</h2>
 
 <label>Ward:</label>
 <select id="ward">
@@ -100,12 +100,6 @@ Tube: <input id="tube">
 
 <hr>
 
-<h3>Session Dashboard</h3>
-<button onclick="loadSessions()">Load Sessions</button>
-<div id="sessions"></div>
-
-<hr>
-
 <h3>Search Last 7 Days</h3>
 
 <input id="searchMed" placeholder="Medication name (partial allowed)">
@@ -137,7 +131,6 @@ Tube: <input id="tube">
 
 <script>
 
-// ✅ UPDATED CORRECT WEB APP URL
 const scriptURL =
 "https://script.google.com/macros/s/AKfycbzZO73dVMSnPbQgrgVAxoH5uwdpPSet-eEyz-4x3Okd8E1rMtBQwouBRfuw-q_FZw2HQg/exec";
 
@@ -149,7 +142,7 @@ let scannerLocked = false;
 let medicationLookup = {};
 window.lastLogs = [];
 
-// ---------------- LOAD MEDICATION MASTER ----------------
+// ---------------- LOAD ----------------
 
 async function loadMedicationMaster() {
 
@@ -157,7 +150,6 @@ async function loadMedicationMaster() {
   const data = await res.json();
 
   medicationLookup = data.meds || {};
-
   window.lastLogs = data.logs || [];
 
 }
@@ -172,42 +164,38 @@ function startScanner() {
 
   const config = {
     fps: 10,
-    qrbox: { width: 220, height: 220 }
+    qrbox: 220
   };
 
   Html5Qrcode.getCameras().then(devices => {
 
-    let cameraId = devices[0].id;
+    let cam = devices[0].id;
 
     devices.forEach(d => {
-      if (d.label.toLowerCase().includes("back")) {
-        cameraId = d.id;
-      }
+      if (d.label.toLowerCase().includes("back")) cam = d.id;
     });
 
-    html5QrCode.start(cameraId, config, onScan);
-
+    html5QrCode.start(cam, config, onScan);
   });
 }
 
-function onScan(decodedText) {
+function onScan(code) {
 
   if (scannerLocked) return;
 
   scannerLocked = true;
-
-  scannedItems.push(decodedText);
+  scannedItems.push(code);
 
   updateList();
 
-  document.getElementById("status").innerHTML =
-    "Scanned: " + decodedText + " → Click Add Another Scan";
+  document.getElementById("status").innerText =
+    "Scanned → press Add Another Scan";
 
 }
 
 function unlockScanner() {
   scannerLocked = false;
-  document.getElementById("status").innerHTML = "Ready for next scan";
+  document.getElementById("status").innerText = "Ready";
 }
 
 function stopScanner() {
@@ -243,31 +231,26 @@ function updateList() {
 
 }
 
-// ---------------- MANUAL ENTRY ----------------
+// ---------------- MANUAL ----------------
 
 function addManualMedication() {
 
-  const input = document.getElementById("manualMed");
-  const val = input.value.trim();
-
+  const val = document.getElementById("manualMed").value.trim();
   if (!val) return;
 
   scannedItems.push("MANUAL:" + val);
 
-  input.value = "";
+  document.getElementById("manualMed").value = "";
 
   updateList();
 
 }
 
-// ---------------- SUBMIT SESSION ----------------
+// ---------------- SUBMIT ----------------
 
 function submitSession() {
 
-  if (scannedItems.length === 0) {
-    alert("No scans");
-    return;
-  }
+  if (!scannedItems.length) return alert("No scans");
 
   const ward = document.getElementById("ward").value;
   const bed = document.getElementById("bed").value || "UNASSIGNED";
@@ -288,7 +271,7 @@ function submitSession() {
 
   });
 
-  alert("Session submitted");
+  alert("Submitted");
 
   scannedItems = [];
   updateList();
@@ -298,70 +281,7 @@ function submitSession() {
 
 }
 
-// ---------------- DASHBOARD ----------------
-
-async function loadSessions() {
-
-  const res = await fetch(scriptURL);
-  const data = await res.json();
-
-  window.lastLogs = data.logs || [];
-
-  const grouped = {};
-
-  data.logs.forEach(row => {
-
-    if (!grouped[row.scanId]) {
-      grouped[row.scanId] = {
-        ward: row.ward,
-        bed: row.bed,
-        tube: row.tube,
-        meds: []
-      };
-    }
-
-    let name;
-
-    if (row.code.startsWith("MANUAL:")) {
-      name = row.code;
-    } else {
-      name = medicationLookup[row.code] || ("UNKNOWN " + row.code);
-    }
-
-    grouped[row.scanId].meds.push(name);
-
-  });
-
-  renderSessions(grouped);
-
-}
-
-function renderSessions(grouped) {
-
-  const el = document.getElementById("sessions");
-  el.innerHTML = "";
-
-  Object.keys(grouped).reverse().forEach(id => {
-
-    const s = grouped[id];
-
-    const div = document.createElement("div");
-    div.className = "card";
-
-    div.innerHTML = `
-      <b>ScanID:</b> ${id}<br>
-      <b>Ward:</b> ${s.ward} | <b>Bed:</b> ${s.bed} | <b>Tube:</b> ${s.tube}
-      <hr>
-      ${s.meds.map(m => `<div>• ${m}</div>`).join("")}
-    `;
-
-    el.appendChild(div);
-
-  });
-
-}
-
-// ---------------- SEARCH ----------------
+// ---------------- SEARCH ONLY ----------------
 
 function searchLogs() {
 
@@ -382,15 +302,15 @@ function searchLogs() {
     const wardMatch = !wardInput || r.ward == wardInput;
     const tubeMatch = !tubeInput || (r.tube || "").toLowerCase().includes(tubeInput);
 
-    let medName;
+    let med;
 
     if (r.code.startsWith("MANUAL:")) {
-      medName = r.code.replace("MANUAL:", "");
+      med = r.code.replace("MANUAL:", "");
     } else {
-      medName = medicationLookup[r.code] || r.code;
+      med = medicationLookup[r.code] || r.code;
     }
 
-    const medMatch = !medInput || medName.toLowerCase().includes(medInput);
+    const medMatch = !medInput || med.toLowerCase().includes(medInput);
 
     if (wardMatch && tubeMatch && medMatch) {
       results.push(r);
@@ -398,15 +318,17 @@ function searchLogs() {
 
   });
 
-  renderSearchResults(results);
+  renderSearch(results);
 
 }
 
-function renderSearchResults(results) {
+// ---------------- RENDER ----------------
+
+function renderSearch(results) {
 
   const el = document.getElementById("searchResults");
 
-  if (results.length === 0) {
+  if (!results.length) {
     el.innerHTML = "No results";
     return;
   }
@@ -418,15 +340,14 @@ function renderSearchResults(results) {
     if (r.code.startsWith("MANUAL:")) {
       med = r.code.replace("MANUAL:", "");
     } else {
-      med = medicationLookup[r.code] || ("UNKNOWN " + r.code);
+      med = medicationLookup[r.code] || r.code;
     }
 
     return `
       <div class="card">
-        <b>ScanID:</b> ${r.scanId}<br>
+        <b>Date:</b> ${new Date(r.time).toLocaleString()}<br>
         <b>Ward:</b> ${r.ward} | <b>Tube:</b> ${r.tube}<br>
-        <b>Medication:</b> ${med}<br>
-        <b>Time:</b> ${new Date(r.time).toLocaleString()}
+        <b>Medication:</b> ${med}
       </div>
     `;
 
