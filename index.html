@@ -29,15 +29,16 @@
     }
 
     #barcodeInput {
-      position: absolute;
-      opacity: 0;
-      height: 0;
-      width: 0;
+      width: 100%;
     }
 
     #status {
       font-weight: bold;
       margin: 10px 0;
+    }
+
+    button {
+      cursor: pointer;
     }
   </style>
 </head>
@@ -68,9 +69,14 @@ Tube: <input id="tube">
 
 <hr>
 
-<div id="status">Scanner Active</div>
+<div id="status">Scanner OFF</div>
 
-<input id="barcodeInput" placeholder="scan">
+<input id="barcodeInput" placeholder="Scan code here">
+
+<br>
+
+<button onclick="startScanner()">Start Scanner</button>
+<button onclick="stopScanner()">Stop Scanner</button>
 
 <h3>Session Items</h3>
 <div id="list">No items</div>
@@ -121,46 +127,30 @@ const scriptURL =
 
 let scannedItems = [];
 let sessionId = crypto.randomUUID();
-let scannerMode = true;
+
+let scannerActive = false;
 
 // ---------------- SCANNER CONTROL ----------------
 
-function isTypingField() {
-  const el = document.activeElement;
-  return ["INPUT", "SELECT", "TEXTAREA"].includes(el.tagName);
+function startScanner() {
+  scannerActive = true;
+  document.getElementById("status").innerText = "Scanner ON";
+  document.getElementById("barcodeInput").focus();
 }
 
-setInterval(() => {
+function stopScanner() {
+  scannerActive = false;
+  document.getElementById("status").innerText = "Scanner OFF";
+  document.getElementById("barcodeInput").blur();
+}
 
-  if (!scannerMode) return;
-
-  if (!isTypingField()) {
-    document.getElementById("barcodeInput").focus();
-  }
-
-}, 800);
-
-document.querySelectorAll("input, select, textarea").forEach(el => {
-
-  el.addEventListener("focus", () => {
-    scannerMode = false;
-    document.getElementById("status").innerText = "Scanner Paused";
-  });
-
-  el.addEventListener("blur", () => {
-    setTimeout(() => {
-      scannerMode = true;
-      document.getElementById("status").innerText = "Scanner Active";
-    }, 600);
-  });
-
-});
-
-// ---------------- SCANNER INPUT ----------------
+// ---------------- SCAN INPUT ----------------
 
 const input = document.getElementById("barcodeInput");
 
 input.addEventListener("keydown", function(e) {
+
+  if (!scannerActive) return;
 
   if (e.key !== "Enter") return;
 
@@ -197,7 +187,7 @@ function removeItem(i) {
   updateList();
 }
 
-// ---------------- MANUAL INPUT (FIXED) ----------------
+// ---------------- MANUAL ENTRY ----------------
 
 function addManual() {
 
@@ -208,7 +198,6 @@ function addManual() {
     return;
   }
 
-  // IMPORTANT: store clean value, NOT required format
   scannedItems.push("MANUAL:" + val);
 
   document.getElementById("manualMed").value = "";
@@ -216,7 +205,7 @@ function addManual() {
   updateList();
 }
 
-// ---------------- SUBMIT (FIXED) ----------------
+// ---------------- SUBMIT ----------------
 
 async function submitSession() {
 
@@ -229,9 +218,7 @@ async function submitSession() {
     return;
   }
 
-  for (const item of scannedItems) {
-
-    const code = item && item.trim() ? item : "EMPTY";
+  for (const code of scannedItems) {
 
     await fetch(scriptURL, {
       method: "POST",
@@ -289,7 +276,6 @@ function searchLogs() {
 
     const wardMatch = !ward || r.ward == ward;
     const tubeMatch = !tube || (r.tube || "").toLowerCase().includes(tube);
-
     const medMatch = !med || (r.code || "").toLowerCase().includes(med);
 
     if (wardMatch && tubeMatch && medMatch) {
