@@ -6,30 +6,15 @@
   <script src="https://unpkg.com/html5-qrcode"></script>
 
   <style>
-    body {
-      font-family: Arial;
-      padding: 10px;
-    }
-
-    .box {
-      margin-bottom: 10px;
-    }
-
-    #list {
+    body { font-family: Arial; padding: 10px; }
+    #list, #logs {
       border: 1px solid #ccc;
       padding: 10px;
-      min-height: 80px;
-    }
-
-    .item {
-      padding: 5px;
-      border-bottom: 1px solid #eee;
-    }
-
-    button {
       margin-top: 10px;
-      padding: 10px;
+      max-height: 200px;
+      overflow-y: auto;
     }
+    .item { padding: 4px; border-bottom: 1px solid #eee; }
   </style>
 </head>
 
@@ -37,7 +22,7 @@
 
 <h2>Medication Scanner</h2>
 
-<div class="box">
+<div>
   <label>Ward:</label>
   <select id="ward">
     <option value="76" selected>76</option>
@@ -52,61 +37,58 @@
     <option value="89">89</option>
     <option value="810">810</option>
   </select>
-</div>
 
-<div class="box">
+  <br><br>
+
   Bed: <input id="bed"><br><br>
-  Tube: <input id="tube">
+  Tube: <input id="tube"><br><br>
 </div>
 
 <hr>
 
 <button onclick="startScanner()">Start Scanner</button>
-<button onclick="stopScanner()">Stop Scanner</button>
+<button onclick="stopScanner()">Stop</button>
 
-<div id="reader" style="width:320px; margin-top:10px;"></div>
+<div id="reader" style="width:320px;"></div>
 
 <h3>Scanned Items</h3>
 <div id="list">No items yet</div>
 
-<button onclick="removeLast()">Remove Last</button>
 <button onclick="submitAll()">Submit All</button>
+
+<hr>
+
+<h3>Last 7 Days Logs</h3>
+<button onclick="loadLogs()">Load Logs</button>
+<div id="logs">Click to load logs</div>
 
 <script>
 
+// 🔥 UPDATED GOOGLE SCRIPT URL
 const scriptURL =
-"https://script.google.com/macros/s/AKfycbyXuM4gNu53UXGw1rWjpLQtB072EptNa77Py2ZBnOawvFUElmh3RTeRB1xiZGoC7a8dnA/exec";
+"https://script.google.com/macros/s/AKfycbwGPM8r-7iJDWWBFZWhI8b-nC59dqJYCwGgf7aX9-tvLMWW3EWOJUMvMmac6WDLJmerfg/exec";
 
 let html5QrCode;
 let scannedItems = [];
-let lastScanTime = 0;
 
-// update UI list
+// update scan list
 function updateList() {
-  const list = document.getElementById("list");
+  const el = document.getElementById("list");
 
   if (scannedItems.length === 0) {
-    list.innerHTML = "No items yet";
+    el.innerHTML = "No items yet";
     return;
   }
 
-  list.innerHTML = scannedItems
-    .map((item, i) => `<div class="item">${i+1}. ${item}</div>`)
-    .join("");
+  el.innerHTML = scannedItems.map((c,i)=>
+    `<div class="item">${i+1}. ${c}</div>`
+  ).join("");
 }
 
-// handle scan
+// scan handler
 function onScan(code) {
-  const now = Date.now();
-
-  // prevent duplicates (1.5 sec)
-  if (now - lastScanTime < 1500) return;
-  lastScanTime = now;
-
   scannedItems.push(code);
   updateList();
-
-  console.log("Scanned:", code);
 }
 
 // start scanner
@@ -115,49 +97,27 @@ function startScanner() {
 
   const config = {
     fps: 20,
-    qrbox: { width: 200, height: 200 },
-    aspectRatio: 1.0,
-    disableFlip: true
+    qrbox: { width: 200, height: 200 }
   };
 
   Html5Qrcode.getCameras().then(devices => {
     let cameraId = devices[0].id;
 
     devices.forEach(d => {
-      if (d.label.toLowerCase().includes("back") ||
-          d.label.toLowerCase().includes("rear")) {
-        cameraId = d.id;
-      }
+      if (d.label.toLowerCase().includes("back")) cameraId = d.id;
     });
 
-    html5QrCode.start(
-      cameraId,
-      config,
-      (decodedText) => onScan(decodedText)
-    );
+    html5QrCode.start(cameraId, config, onScan);
   });
 }
 
 // stop scanner
 function stopScanner() {
-  if (html5QrCode) {
-    html5QrCode.stop().then(() => html5QrCode.clear());
-  }
+  if (html5QrCode) html5QrCode.stop();
 }
 
-// remove last scan
-function removeLast() {
-  scannedItems.pop();
-  updateList();
-}
-
-// submit all
+// submit all scans
 function submitAll() {
-  if (scannedItems.length === 0) {
-    alert("No items to submit");
-    return;
-  }
-
   const ward = document.getElementById("ward").value;
   const bed = document.getElementById("bed").value;
   const tube = document.getElementById("tube").value;
@@ -179,6 +139,26 @@ function submitAll() {
 
   scannedItems = [];
   updateList();
+}
+
+// load last 7 days logs
+function loadLogs() {
+  fetch(scriptURL)
+    .then(res => res.json())
+    .then(data => {
+      const el = document.getElementById("logs");
+
+      if (!data.length) {
+        el.innerHTML = "No logs found";
+        return;
+      }
+
+      el.innerHTML = data.reverse().map(r =>
+        `<div class="item">
+          ${r.time} | Ward ${r.ward} | Bed ${r.bed} | ${r.code}
+        </div>`
+      ).join("");
+    });
 }
 
 </script>
