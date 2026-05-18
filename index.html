@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Medication Barcode Scanner System</title>
+  <title>Medication Barcode Scanner</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
@@ -48,9 +48,9 @@
 
     #status {
       font-weight: bold;
+      margin: 10px 0;
     }
 
-    /* hidden scanner input */
     #barcodeInput {
       position: absolute;
       opacity: 0;
@@ -62,7 +62,7 @@
 
 <body>
 
-<h2>Medication Barcode Scanner</h2>
+<h2>Medication Barcode Scanner System</h2>
 
 <label>Ward:</label>
 <select id="ward">
@@ -86,10 +86,14 @@ Tube: <input id="tube">
 
 <hr>
 
-<div id="status">Ready for barcode scan</div>
+<!-- SCANNER CONTROLS -->
+<button onclick="startScannerMode()">Start Scanner</button>
+<button onclick="stopScannerMode()">Stop Scanner</button>
 
-<!-- 🔥 BARCODE SCANNER INPUT -->
-<input id="barcodeInput" autofocus placeholder="Scan here">
+<div id="status">Scanner OFF</div>
+
+<!-- HIDDEN BARCODE INPUT -->
+<input id="barcodeInput" placeholder="scan">
 
 <h3>Current Session</h3>
 <div id="list">No items yet</div>
@@ -143,34 +147,53 @@ let sessionId = crypto.randomUUID();
 let medicationLookup = {};
 window.lastLogs = [];
 
+let scannerActive = false;
+
 // ---------------- LOAD DATA ----------------
 
 async function loadData() {
-
   const res = await fetch(scriptURL);
   const data = await res.json();
 
   medicationLookup = data.meds || {};
   window.lastLogs = data.logs || [];
-
 }
 
 loadData();
 
-// ---------------- BARCODE SCANNER ----------------
+// ---------------- START / STOP SCANNER ----------------
+
+function startScannerMode() {
+  scannerActive = true;
+
+  document.getElementById("status").innerText =
+    "Scanner ON";
+
+  document.getElementById("barcodeInput").focus();
+}
+
+function stopScannerMode() {
+  scannerActive = false;
+
+  document.getElementById("status").innerText =
+    "Scanner OFF (Manual Mode)";
+
+}
+
+// ---------------- BARCODE INPUT ----------------
 
 const input = document.getElementById("barcodeInput");
 
 input.addEventListener("keydown", function(e) {
 
+  if (!scannerActive) return;
+
   if (e.key === "Enter") {
 
     const code = input.value.trim();
-
     if (!code) return;
 
     scannedItems.push(code);
-
     updateList();
 
     document.getElementById("status").innerText =
@@ -181,10 +204,14 @@ input.addEventListener("keydown", function(e) {
 
 });
 
-// keep focus alive (important for scanners)
+// keep focus only when scanner is ON
 setInterval(() => {
-  input.focus();
-}, 1000);
+
+  if (scannerActive) {
+    input.focus();
+  }
+
+}, 800);
 
 // ---------------- LIST ----------------
 
