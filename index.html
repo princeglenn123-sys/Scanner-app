@@ -1,17 +1,25 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Medication Scanner</title>
+  <title>Medication Barcode Scanner</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
-    body { font-family: Arial; padding: 10px; }
+    body {
+      font-family: Arial;
+      padding: 10px;
+    }
 
-    input, select, button {
+    button {
+      padding: 10px;
+      margin: 5px 0;
+    }
+
+    input, select {
       padding: 8px;
       margin: 5px 0;
       width: 100%;
-      max-width: 350px;
+      max-width: 320px;
     }
 
     #list, #searchResults {
@@ -25,11 +33,17 @@
     .card {
       border: 1px solid #ddd;
       padding: 10px;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }
 
-    #barcodeInput {
-      width: 100%;
+    .manual {
+      color: orange;
+      font-weight: bold;
+    }
+
+    .unknown {
+      color: red;
+      font-weight: bold;
     }
 
     #status {
@@ -37,15 +51,18 @@
       margin: 10px 0;
     }
 
-    button {
-      cursor: pointer;
+    #barcodeInput {
+      position: absolute;
+      opacity: 0;
+      height: 0;
+      width: 0;
     }
   </style>
 </head>
 
 <body>
 
-<h2>Medication Scanner System</h2>
+<h2>Medication Barcode Scanner</h2>
 
 <label>Ward:</label>
 <select id="ward">
@@ -69,31 +86,29 @@ Tube: <input id="tube">
 
 <hr>
 
+<button onclick="startScannerMode()">Start Scanner</button>
+<button onclick="stopScannerMode()">Stop Scanner</button>
+
 <div id="status">Scanner OFF</div>
 
-<input id="barcodeInput" placeholder="Scan code here">
+<input id="barcodeInput" placeholder="scan">
 
-<br>
+<h3>Current Session</h3>
+<div id="list">No items yet</div>
 
-<button onclick="startScanner()">Start Scanner</button>
-<button onclick="stopScanner()">Stop Scanner</button>
-
-<h3>Session Items</h3>
-<div id="list">No items</div>
-
-<button onclick="submitSession()">Submit</button>
+<button onclick="submitSession()">Submit Session</button>
 
 <hr>
 
 <h3>Manual Entry</h3>
 <input id="manualMed" placeholder="Enter medication name">
-<button onclick="addManual()">Add Manual</button>
+<button onclick="addManualMedication()">Add Manual Medication</button>
 
 <hr>
 
 <h3>Search Last 7 Days</h3>
 
-<input id="searchMed" placeholder="Medication">
+<input id="searchMed" placeholder="Medication name">
 <br>
 
 <select id="searchWard">
@@ -113,7 +128,7 @@ Tube: <input id="tube">
 
 <br>
 
-<input id="searchTube" placeholder="Tube (optional)">
+<input id="searchTube" placeholder="Tube number (optional)">
 <br>
 
 <button onclick="searchLogs()">Search</button>
@@ -127,24 +142,37 @@ const scriptURL =
 
 let scannedItems = [];
 let sessionId = crypto.randomUUID();
+let medicationLookup = {};
+window.lastLogs = [];
 
 let scannerActive = false;
 
+// ---------------- LOAD DATA ----------------
+
+async function loadData() {
+  const res = await fetch(scriptURL);
+  const data = await res.json();
+
+  medicationLookup = data.meds || {};
+  window.lastLogs = data.logs || [];
+}
+
+loadData();
+
 // ---------------- SCANNER CONTROL ----------------
 
-function startScanner() {
+function startScannerMode() {
   scannerActive = true;
   document.getElementById("status").innerText = "Scanner ON";
   document.getElementById("barcodeInput").focus();
 }
 
-function stopScanner() {
+function stopScannerMode() {
   scannerActive = false;
   document.getElementById("status").innerText = "Scanner OFF";
-  document.getElementById("barcodeInput").blur();
 }
 
-// ---------------- SCAN INPUT ----------------
+// ---------------- BARCODE INPUT ----------------
 
 const input = document.getElementById("barcodeInput");
 
@@ -152,16 +180,26 @@ input.addEventListener("keydown", function(e) {
 
   if (!scannerActive) return;
 
-  if (e.key !== "Enter") return;
+  if (e.key === "Enter") {
 
-  const code = input.value.trim();
-  if (!code) return;
+    const code = input.value.trim();
+    if (!code) return;
 
-  scannedItems.push(code);
-  updateList();
+    scannedItems.push(code);
+    updateList();
 
-  input.value = "";
+    document.getElementById("status").innerText =
+      "Scanned: " + code;
+
+    input.value = "";
+  }
+
 });
+
+// keep focus only when scanner ON
+setInterval(() => {
+  if (scannerActive) input.focus();
+}, 800);
 
 // ---------------- LIST ----------------
 
@@ -169,62 +207,70 @@ function updateList() {
 
   const el = document.getElementById("list");
 
-  if (scannedItems.length === 0) {
-    el.innerHTML = "No items";
+  if (!scannedItems.length) {
+    el.innerHTML = "No items yet";
     return;
   }
 
-  el.innerHTML = scannedItems.map((c, i) => `
-    <div class="card">
-      ${i + 1}. ${c}
-      <button onclick="removeItem(${i})">❌</button>
-    </div>
-  `).join("");
+  el.innerHTML = scannedItems.map((code, i) => {
+
+    let display;
+
+    if (code.startsWith("MANUAL:")) {
+      display = code.replace("MANUAL:", "");
+    } else {
+      display = medicationLookup[code] || ("UNKNOWN " + code);
+    }
+
+    return `
+      <div class="card">
+        <b>${i + 1}.</b> ${display}
+        <button onclick="removeItem(${i})">❌ Remove</button>
+      </div>
+    `;
+
+  }).join("");
+
 }
 
-function removeItem(i) {
-  scannedItems.splice(i, 1);
+// ---------------- REMOVE ----------------
+
+function removeItem(index) {
+  scannedItems.splice(index, 1);
   updateList();
 }
 
-// ---------------- MANUAL ENTRY ----------------
+// ---------------- MANUAL ----------------
 
-function addManual() {
+function addManualMedication() {
 
   const val = document.getElementById("manualMed").value.trim();
-
-  if (!val) {
-    alert("Enter medication name");
-    return;
-  }
+  if (!val) return;
 
   scannedItems.push("MANUAL:" + val);
 
   document.getElementById("manualMed").value = "";
 
   updateList();
+
 }
 
-// ---------------- SUBMIT ----------------
+// ---------------- SUBMIT + AUTO REFRESH FIX ----------------
 
 async function submitSession() {
 
-  const ward = document.getElementById("ward").value;
-  const bed = document.getElementById("bed").value || "NA";
-  const tube = document.getElementById("tube").value || "NA";
-
-  if (scannedItems.length === 0) {
-    alert("No items to submit");
+  if (!scannedItems.length) {
+    alert("No scans");
     return;
   }
 
-  for (const code of scannedItems) {
+  const ward = document.getElementById("ward").value;
+  const bed = document.getElementById("bed").value || "UNASSIGNED";
+  const tube = document.getElementById("tube").value || "UNASSIGNED";
 
+  for (const code of scannedItems) {
     await fetch(scriptURL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
       body: JSON.stringify({
         scanId: sessionId,
         ward,
@@ -233,50 +279,52 @@ async function submitSession() {
         code
       })
     });
-
   }
 
   alert("Submitted");
 
   scannedItems = [];
   updateList();
+
   sessionId = crypto.randomUUID();
+
+  // 🔥 IMPORTANT FIX: refresh logs immediately
+  await loadData();
+
+  // optional: refresh search if needed
+  searchLogs();
 }
 
 // ---------------- SEARCH ----------------
 
-let lastLogs = [];
-let meds = {};
-
-async function loadData() {
-  const res = await fetch(scriptURL);
-  const data = await res.json();
-
-  lastLogs = data.logs;
-  meds = data.meds;
-}
-
-loadData();
-
 function searchLogs() {
 
-  const med = document.getElementById("searchMed").value.toLowerCase();
-  const ward = document.getElementById("searchWard").value;
-  const tube = document.getElementById("searchTube").value.toLowerCase();
+  const medInput = document.getElementById("searchMed").value.toLowerCase();
+  const wardInput = document.getElementById("searchWard").value;
+  const tubeInput = document.getElementById("searchTube").value.toLowerCase();
 
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 7);
 
   const results = [];
 
-  lastLogs.forEach(r => {
+  window.lastLogs.forEach(r => {
 
     const time = new Date(r.time);
     if (time < cutoff) return;
 
-    const wardMatch = !ward || r.ward == ward;
-    const tubeMatch = !tube || (r.tube || "").toLowerCase().includes(tube);
-    const medMatch = !med || (r.code || "").toLowerCase().includes(med);
+    const wardMatch = !wardInput || r.ward == wardInput;
+    const tubeMatch = !tubeInput || (r.tube || "").toLowerCase().includes(tubeInput);
+
+    let med;
+
+    if (r.code.startsWith("MANUAL:")) {
+      med = r.code.replace("MANUAL:", "");
+    } else {
+      med = medicationLookup[r.code] || r.code;
+    }
+
+    const medMatch = !medInput || med.toLowerCase().includes(medInput);
 
     if (wardMatch && tubeMatch && medMatch) {
       results.push(r);
@@ -284,16 +332,41 @@ function searchLogs() {
 
   });
 
-  document.getElementById("searchResults").innerHTML =
-    results.length
-      ? results.map(r => `
-        <div class="card">
-          ${new Date(r.time).toLocaleString()}<br>
-          Ward: ${r.ward} | Bed: ${r.bed} | Tube: ${r.tube}<br>
-          Code: ${r.code}
-        </div>
-      `).join("")
-      : "No results";
+  renderSearch(results);
+
+}
+
+// ---------------- RENDER ----------------
+
+function renderSearch(results) {
+
+  const el = document.getElementById("searchResults");
+
+  if (!results.length) {
+    el.innerHTML = "No results";
+    return;
+  }
+
+  el.innerHTML = results.map(r => {
+
+    let med;
+
+    if (r.code.startsWith("MANUAL:")) {
+      med = r.code.replace("MANUAL:", "");
+    } else {
+      med = medicationLookup[r.code] || r.code;
+    }
+
+    return `
+      <div class="card">
+        <b>Date:</b> ${new Date(r.time).toLocaleString()}<br>
+        <b>Ward:</b> ${r.ward} | <b>Tube:</b> ${r.tube}<br>
+        <b>Medication:</b> ${med}
+      </div>
+    `;
+
+  }).join("");
+
 }
 
 </script>
