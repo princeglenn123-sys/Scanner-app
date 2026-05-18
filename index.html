@@ -30,6 +30,12 @@
       overflow-y: auto;
     }
 
+    .card {
+      border: 1px solid #ddd;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+
     .manual {
       color: orange;
       font-weight: bold;
@@ -38,12 +44,6 @@
     .unknown {
       color: red;
       font-weight: bold;
-    }
-
-    .card {
-      border: 1px solid #ddd;
-      padding: 10px;
-      margin-bottom: 10px;
     }
 
     #status {
@@ -62,7 +62,7 @@
 
 <body>
 
-<h2>Medication Barcode Scanner System</h2>
+<h2>Medication Barcode Scanner</h2>
 
 <label>Ward:</label>
 <select id="ward">
@@ -86,13 +86,11 @@ Tube: <input id="tube">
 
 <hr>
 
-<!-- SCANNER CONTROLS -->
 <button onclick="startScannerMode()">Start Scanner</button>
 <button onclick="stopScannerMode()">Stop Scanner</button>
 
 <div id="status">Scanner OFF</div>
 
-<!-- HIDDEN BARCODE INPUT -->
 <input id="barcodeInput" placeholder="scan">
 
 <h3>Current Session</h3>
@@ -110,7 +108,7 @@ Tube: <input id="tube">
 
 <h3>Search Last 7 Days</h3>
 
-<input id="searchMed" placeholder="Medication name (partial allowed)">
+<input id="searchMed" placeholder="Medication name">
 <br>
 
 <select id="searchWard">
@@ -149,7 +147,7 @@ window.lastLogs = [];
 
 let scannerActive = false;
 
-// ---------------- LOAD DATA ----------------
+// ---------------- LOAD ----------------
 
 async function loadData() {
   const res = await fetch(scriptURL);
@@ -161,23 +159,17 @@ async function loadData() {
 
 loadData();
 
-// ---------------- START / STOP SCANNER ----------------
+// ---------------- SCANNER CONTROL ----------------
 
 function startScannerMode() {
   scannerActive = true;
-
-  document.getElementById("status").innerText =
-    "Scanner ON";
-
+  document.getElementById("status").innerText = "Scanner ON";
   document.getElementById("barcodeInput").focus();
 }
 
 function stopScannerMode() {
   scannerActive = false;
-
-  document.getElementById("status").innerText =
-    "Scanner OFF (Manual Mode)";
-
+  document.getElementById("status").innerText = "Scanner OFF";
 }
 
 // ---------------- BARCODE INPUT ----------------
@@ -204,13 +196,11 @@ input.addEventListener("keydown", function(e) {
 
 });
 
-// keep focus only when scanner is ON
+// keep focus only when scanner ON
 setInterval(() => {
-
   if (scannerActive) {
     input.focus();
   }
-
 }, 800);
 
 // ---------------- LIST ----------------
@@ -226,20 +216,30 @@ function updateList() {
 
   el.innerHTML = scannedItems.map((code, i) => {
 
+    let display;
+
     if (code.startsWith("MANUAL:")) {
-      return `<div class="manual">${i+1}. ${code}</div>`;
+      display = code.replace("MANUAL:", "");
+    } else {
+      display = medicationLookup[code] || ("UNKNOWN " + code);
     }
 
-    const med = medicationLookup[code];
-
-    if (!med) {
-      return `<div class="unknown">${i+1}. UNKNOWN (${code})</div>`;
-    }
-
-    return `<div>${i+1}. ${med} (${code})</div>`;
+    return `
+      <div class="card">
+        <b>${i + 1}.</b> ${display}
+        <button onclick="removeItem(${i})">❌ Remove</button>
+      </div>
+    `;
 
   }).join("");
 
+}
+
+// ---------------- REMOVE ONLY ----------------
+
+function removeItem(index) {
+  scannedItems.splice(index, 1);
+  updateList();
 }
 
 // ---------------- MANUAL ENTRY ----------------
