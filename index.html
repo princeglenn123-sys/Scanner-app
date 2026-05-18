@@ -1,78 +1,222 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Scanner App</title>
+  <title>Medication Scanner System</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://unpkg.com/html5-qrcode"></script>
 
   <style>
-    body { font-family: Arial; padding: 10px; }
-    #list, #logs {
+    body {
+      font-family: Arial;
+      padding: 10px;
+    }
+
+    button {
+      padding: 10px;
+      margin: 5px 0;
+    }
+
+    input, select {
+      padding: 8px;
+      margin: 5px 0;
+      width: 100%;
+      max-width: 320px;
+    }
+
+    #list, #sessions, #searchResults {
       border: 1px solid #ccc;
       padding: 10px;
       margin-top: 10px;
-      max-height: 200px;
+      max-height: 300px;
       overflow-y: auto;
     }
-    .item { padding: 4px; border-bottom: 1px solid #eee; }
+
+    .card {
+      border: 1px solid #ddd;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+
+    .med {
+      margin-left: 10px;
+    }
+
+    .manual {
+      color: orange;
+      font-weight: bold;
+    }
+
+    .unknown {
+      color: red;
+      font-weight: bold;
+    }
+
+    #status {
+      font-weight: bold;
+    }
   </style>
 </head>
 
 <body>
 
-<h2>Medication Scanner</h2>
+<h2>Medication Scanner System</h2>
 
-<div>
-  <label>Ward:</label>
-  <select id="ward">
-    <option value="76" selected>76</option>
-    <option value="77">77</option>
-    <option value="78">78</option>
-    <option value="79">79</option>
-    <option value="710">710</option>
-    <option value="85">85</option>
-    <option value="86">86</option>
-    <option value="87">87</option>
-    <option value="88">88</option>
-    <option value="89">89</option>
-    <option value="810">810</option>
-  </select>
+<!-- WARD -->
+<label>Ward:</label>
+<select id="ward">
+  <option value="76">76</option>
+  <option value="77">77</option>
+  <option value="78">78</option>
+  <option value="79">79</option>
+  <option value="710">710</option>
+  <option value="85">85</option>
+  <option value="86">86</option>
+  <option value="87">87</option>
+  <option value="88">88</option>
+  <option value="89">89</option>
+  <option value="810">810</option>
+</select>
 
-  <br><br>
+<br>
 
-  Bed: <input id="bed"><br><br>
-  Tube: <input id="tube"><br><br>
-</div>
+Bed: <input id="bed">
+Tube: <input id="tube">
 
 <hr>
 
-<button onclick="startScanner()">Start Scanner</button>
-<button onclick="stopScanner()">Stop</button>
+<button onclick="startScanner()">Start Camera</button>
+<button onclick="unlockScanner()">Add Another Scan</button>
+<button onclick="stopScanner()">Stop Camera</button>
+
+<div id="status">Ready</div>
 
 <div id="reader" style="width:320px;"></div>
 
-<h3>Scanned Items</h3>
+<h3>Current Session</h3>
 <div id="list">No items yet</div>
 
-<button onclick="submitAll()">Submit All</button>
+<button onclick="submitSession()">Submit Session</button>
 
 <hr>
 
-<h3>Last 7 Days Logs</h3>
-<button onclick="loadLogs()">Load Logs</button>
-<div id="logs">Click to load logs</div>
+<h3>Manual Entry</h3>
+<input id="manualMed" placeholder="Enter medication name">
+<button onclick="addManualMedication()">Add Manual Medication</button>
+
+<hr>
+
+<h3>Session Dashboard</h3>
+<button onclick="loadSessions()">Load Sessions</button>
+<div id="sessions"></div>
+
+<hr>
+
+<h3>Search Last 7 Days</h3>
+
+<input id="searchMed" placeholder="Medication name (partial allowed)">
+<br>
+
+<select id="searchWard">
+  <option value="">All Wards</option>
+  <option value="76">76</option>
+  <option value="77">77</option>
+  <option value="78">78</option>
+  <option value="79">79</option>
+  <option value="710">710</option>
+  <option value="85">85</option>
+  <option value="86">86</option>
+  <option value="87">87</option>
+  <option value="88">88</option>
+  <option value="89">89</option>
+  <option value="810">810</option>
+</select>
+
+<br>
+
+<input id="searchTube" placeholder="Tube number (optional)">
+<br>
+
+<button onclick="searchLogs()">Search</button>
+
+<div id="searchResults"></div>
 
 <script>
 
-// 🔥 UPDATED GOOGLE SCRIPT URL
 const scriptURL =
 "https://script.google.com/macros/s/AKfycbwGPM8r-7iJDWWBFZWhI8b-nC59dqJYCwGgf7aX9-tvLMWW3EWOJUMvMmac6WDLJmerfg/exec";
 
 let html5QrCode;
 let scannedItems = [];
+let sessionId = crypto.randomUUID();
+let scannerLocked = false;
 
-// update scan list
+let medicationLookup = {};
+window.lastLogs = [];
+
+// ---------------- LOAD MASTER ----------------
+
+async function loadMedicationMaster() {
+  const res = await fetch(scriptURL);
+  const data = await res.json();
+  medicationLookup = data.meds || {};
+}
+
+loadMedicationMaster();
+
+// ---------------- SCANNER ----------------
+
+function startScanner() {
+
+  html5QrCode = new Html5Qrcode("reader");
+
+  const config = {
+    fps: 10,
+    qrbox: { width: 220, height: 220 }
+  };
+
+  Html5Qrcode.getCameras().then(devices => {
+
+    let cameraId = devices[0].id;
+
+    devices.forEach(d => {
+      if (d.label.toLowerCase().includes("back")) {
+        cameraId = d.id;
+      }
+    });
+
+    html5QrCode.start(cameraId, config, onScan);
+
+  });
+}
+
+function onScan(decodedText) {
+
+  if (scannerLocked) return;
+
+  scannerLocked = true;
+
+  scannedItems.push(decodedText);
+
+  updateList();
+
+  document.getElementById("status").innerHTML =
+    "Scanned: " + decodedText + " → Press Add Another Scan";
+
+}
+
+function unlockScanner() {
+  scannerLocked = false;
+  document.getElementById("status").innerHTML = "Ready for next scan";
+}
+
+function stopScanner() {
+  if (html5QrCode) html5QrCode.stop();
+}
+
+// ---------------- LIST ----------------
+
 function updateList() {
+
   const el = document.getElementById("list");
 
   if (scannedItems.length === 0) {
@@ -80,85 +224,210 @@ function updateList() {
     return;
   }
 
-  el.innerHTML = scannedItems.map((c,i)=>
-    `<div class="item">${i+1}. ${c}</div>`
-  ).join("");
+  el.innerHTML = scannedItems.map((code, i) => {
+
+    if (code.startsWith("MANUAL:")) {
+      return `<div class="manual">${i+1}. ${code}</div>`;
+    }
+
+    const med = medicationLookup[code];
+
+    if (!med) {
+      return `<div class="unknown">${i+1}. UNKNOWN (${code})</div>`;
+    }
+
+    return `<div>${i+1}. ${med} (${code})</div>`;
+
+  }).join("");
+
 }
 
-// scan handler
-function onScan(code) {
-  scannedItems.push(code);
+// ---------------- MANUAL ----------------
+
+function addManualMedication() {
+
+  const input = document.getElementById("manualMed");
+  const val = input.value.trim();
+
+  if (!val) return;
+
+  scannedItems.push("MANUAL:" + val);
+
+  input.value = "";
+
   updateList();
+
 }
 
-// start scanner
-function startScanner() {
-  html5QrCode = new Html5Qrcode("reader");
+// ---------------- SUBMIT ----------------
 
-  const config = {
-    fps: 20,
-    qrbox: { width: 200, height: 200 }
-  };
+function submitSession() {
 
-  Html5Qrcode.getCameras().then(devices => {
-    let cameraId = devices[0].id;
+  if (scannedItems.length === 0) return alert("No scans");
 
-    devices.forEach(d => {
-      if (d.label.toLowerCase().includes("back")) cameraId = d.id;
-    });
-
-    html5QrCode.start(cameraId, config, onScan);
-  });
-}
-
-// stop scanner
-function stopScanner() {
-  if (html5QrCode) html5QrCode.stop();
-}
-
-// submit all scans
-function submitAll() {
   const ward = document.getElementById("ward").value;
   const bed = document.getElementById("bed").value;
   const tube = document.getElementById("tube").value;
 
   scannedItems.forEach(code => {
+
     fetch(scriptURL, {
       method: "POST",
       body: JSON.stringify({
-        scanId: crypto.randomUUID(),
+        scanId: sessionId,
         ward,
         bed,
         tube,
         code
       })
     });
+
   });
 
-  alert("Submitted " + scannedItems.length + " items");
+  alert("Session submitted");
 
   scannedItems = [];
   updateList();
+
+  sessionId = crypto.randomUUID();
+  scannerLocked = false;
+
 }
 
-// load last 7 days logs
-function loadLogs() {
-  fetch(scriptURL)
-    .then(res => res.json())
-    .then(data => {
-      const el = document.getElementById("logs");
+// ---------------- LOAD DASHBOARD ----------------
 
-      if (!data.length) {
-        el.innerHTML = "No logs found";
-        return;
-      }
+async function loadSessions() {
 
-      el.innerHTML = data.reverse().map(r =>
-        `<div class="item">
-          ${r.time} | Ward ${r.ward} | Bed ${r.bed} | ${r.code}
-        </div>`
-      ).join("");
-    });
+  const res = await fetch(scriptURL);
+  const data = await res.json();
+
+  window.lastLogs = data.logs || [];
+
+  const grouped = {};
+
+  data.logs.forEach(row => {
+
+    if (!grouped[row.scanId]) {
+      grouped[row.scanId] = {
+        ward: row.ward,
+        bed: row.bed,
+        tube: row.tube,
+        meds: []
+      };
+    }
+
+    let name;
+
+    if (row.code.startsWith("MANUAL:")) {
+      name = row.code;
+    } else {
+      name = medicationLookup[row.code] || ("UNKNOWN " + row.code);
+    }
+
+    grouped[row.scanId].meds.push(name);
+
+  });
+
+  renderSessions(grouped);
+
+}
+
+function renderSessions(grouped) {
+
+  const el = document.getElementById("sessions");
+  el.innerHTML = "";
+
+  Object.keys(grouped).reverse().forEach(id => {
+
+    const s = grouped[id];
+
+    const div = document.createElement("div");
+    div.className = "card";
+
+    div.innerHTML = `
+      <b>ScanID:</b> ${id}<br>
+      <b>Ward:</b> ${s.ward} | <b>Bed:</b> ${s.bed} | <b>Tube:</b> ${s.tube}
+      <hr>
+      ${s.meds.map(m => `<div>• ${m}</div>`).join("")}
+    `;
+
+    el.appendChild(div);
+
+  });
+
+}
+
+// ---------------- SEARCH (7 DAYS) ----------------
+
+function searchLogs() {
+
+  const medInput = document.getElementById("searchMed").value.toLowerCase();
+  const wardInput = document.getElementById("searchWard").value;
+  const tubeInput = document.getElementById("searchTube").value.toLowerCase();
+
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 7);
+
+  const results = [];
+
+  window.lastLogs.forEach(r => {
+
+    const time = new Date(r.time);
+    if (time < cutoff) return;
+
+    const wardMatch = !wardInput || r.ward == wardInput;
+    const tubeMatch = !tubeInput || (r.tube || "").toLowerCase().includes(tubeInput);
+
+    let medName;
+
+    if (r.code.startsWith("MANUAL:")) {
+      medName = r.code.replace("MANUAL:", "");
+    } else {
+      medName = medicationLookup[r.code] || r.code;
+    }
+
+    const medMatch = !medInput || medName.toLowerCase().includes(medInput);
+
+    if (wardMatch && tubeMatch && medMatch) {
+      results.push(r);
+    }
+
+  });
+
+  renderSearchResults(results);
+
+}
+
+function renderSearchResults(results) {
+
+  const el = document.getElementById("searchResults");
+
+  if (results.length === 0) {
+    el.innerHTML = "No results";
+    return;
+  }
+
+  el.innerHTML = results.map(r => {
+
+    let med;
+
+    if (r.code.startsWith("MANUAL:")) {
+      med = r.code.replace("MANUAL:", "");
+    } else {
+      med = medicationLookup[r.code] || ("UNKNOWN " + r.code);
+    }
+
+    return `
+      <div class="card">
+        <b>ScanID:</b> ${r.scanId}<br>
+        <b>Ward:</b> ${r.ward} | <b>Tube:</b> ${r.tube}<br>
+        <b>Medication:</b> ${med}<br>
+        <b>Time:</b> ${new Date(r.time).toLocaleString()}
+      </div>
+    `;
+
+  }).join("");
+
 }
 
 </script>
