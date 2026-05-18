@@ -7,16 +7,11 @@
   <style>
     body { font-family: Arial; padding: 10px; }
 
-    button {
-      padding: 10px;
-      margin: 5px 0;
-    }
-
-    input, select {
+    input, select, button {
       padding: 8px;
       margin: 5px 0;
       width: 100%;
-      max-width: 320px;
+      max-width: 350px;
     }
 
     #list, #searchResults {
@@ -30,11 +25,8 @@
     .card {
       border: 1px solid #ddd;
       padding: 10px;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
-
-    .manual { color: orange; font-weight: bold; }
-    .unknown { color: red; font-weight: bold; }
 
     #barcodeInput {
       position: absolute;
@@ -88,7 +80,7 @@ Tube: <input id="tube">
 <hr>
 
 <h3>Manual Entry</h3>
-<input id="manualMed" placeholder="Manual medication name">
+<input id="manualMed" placeholder="Manual medication">
 <button onclick="addManual()">Add Manual</button>
 
 <hr>
@@ -129,21 +121,45 @@ const scriptURL =
 
 let scannedItems = [];
 let sessionId = crypto.randomUUID();
-let medicationLookup = {};
-window.lastLogs = [];
+let scannerMode = true;
 
-// ---------------- LOAD DATA ----------------
-async function loadData() {
-  const res = await fetch(scriptURL);
-  const data = await res.json();
+// ---------------- SCANNER CONTROL (FIXED) ----------------
 
-  medicationLookup = data.meds || {};
-  window.lastLogs = data.logs || [];
+function isTypingField() {
+  const el = document.activeElement;
+  return ["INPUT", "SELECT", "TEXTAREA"].includes(el.tagName);
 }
 
-loadData();
+// Smart scanner loop (NO MORE LOCKING)
+setInterval(() => {
 
-// ---------------- SCANNER ----------------
+  if (!scannerMode) return;
+
+  if (!isTypingField()) {
+    document.getElementById("barcodeInput").focus();
+  }
+
+}, 800);
+
+// Pause scanner when user interacts with inputs
+document.querySelectorAll("input, select, textarea").forEach(el => {
+
+  el.addEventListener("focus", () => {
+    scannerMode = false;
+    document.getElementById("status").innerText = "Scanner Paused";
+  });
+
+  el.addEventListener("blur", () => {
+    setTimeout(() => {
+      scannerMode = true;
+      document.getElementById("status").innerText = "Scanner Active";
+    }, 600);
+  });
+
+});
+
+// ---------------- SCAN INPUT ----------------
+
 const input = document.getElementById("barcodeInput");
 
 input.addEventListener("keydown", function(e) {
@@ -159,12 +175,8 @@ input.addEventListener("keydown", function(e) {
   input.value = "";
 });
 
-// keep focus
-setInterval(() => {
-  input.focus();
-}, 500);
-
 // ---------------- LIST ----------------
+
 function updateList() {
 
   const el = document.getElementById("list");
@@ -174,39 +186,36 @@ function updateList() {
     return;
   }
 
-  el.innerHTML = scannedItems.map((code, i) => {
+  el.innerHTML = scannedItems.map((c, i) => `
+    <div class="card">
+      ${i+1}. ${c}
+      <button onclick="removeItem(${i})">❌</button>
+    </div>
+  `).join("");
 
-    const display =
-      medicationLookup[code] || (code.startsWith("MANUAL:") ? code.replace("MANUAL:", "") : "UNKNOWN " + code);
-
-    return `
-      <div class="card">
-        ${i+1}. ${display}
-        <button onclick="removeItem(${i})">❌</button>
-      </div>
-    `;
-
-  }).join("");
 }
 
-// ---------------- REMOVE ----------------
 function removeItem(i) {
   scannedItems.splice(i, 1);
   updateList();
 }
 
 // ---------------- MANUAL ----------------
+
 function addManual() {
+
   const val = document.getElementById("manualMed").value.trim();
   if (!val) return;
 
   scannedItems.push("MANUAL:" + val);
+
   document.getElementById("manualMed").value = "";
 
   updateList();
 }
 
 // ---------------- SUBMIT ----------------
+
 async function submitSession() {
 
   const ward = document.getElementById("ward").value;
@@ -228,6 +237,7 @@ async function submitSession() {
         code
       })
     });
+
   }
 
   alert("Submitted");
@@ -235,12 +245,23 @@ async function submitSession() {
   scannedItems = [];
   updateList();
   sessionId = crypto.randomUUID();
-
-  await loadData();
-  searchLogs();
 }
 
 // ---------------- SEARCH ----------------
+
+let lastLogs = [];
+let meds = {};
+
+async function loadData() {
+  const res = await fetch(scriptURL);
+  const data = await res.json();
+
+  lastLogs = data.logs;
+  meds = data.meds;
+}
+
+loadData();
+
 function searchLogs() {
 
   const med = document.getElementById("searchMed").value.toLowerCase();
@@ -252,7 +273,7 @@ function searchLogs() {
 
   const results = [];
 
-  window.lastLogs.forEach(r => {
+  lastLogs.forEach(r => {
 
     const time = new Date(r.time);
     if (time < cutoff) return;
@@ -260,10 +281,7 @@ function searchLogs() {
     const wardMatch = !ward || r.ward == ward;
     const tubeMatch = !tube || (r.tube || "").toLowerCase().includes(tube);
 
-    let medName =
-      r.code.startsWith("MANUAL:")
-        ? r.code.replace("MANUAL:", "")
-        : (medicationLookup[r.code] || r.code);
+    const medName = r.code;
 
     const medMatch = !med || medName.toLowerCase().includes(med);
 
