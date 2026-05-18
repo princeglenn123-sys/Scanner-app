@@ -37,10 +37,6 @@
       margin-bottom: 10px;
     }
 
-    .med {
-      margin-left: 10px;
-    }
-
     .manual {
       color: orange;
       font-weight: bold;
@@ -61,7 +57,6 @@
 
 <h2>Medication Scanner System</h2>
 
-<!-- WARD -->
 <label>Ward:</label>
 <select id="ward">
   <option value="76">76</option>
@@ -142,8 +137,9 @@ Tube: <input id="tube">
 
 <script>
 
+// ✅ UPDATED CORRECT WEB APP URL
 const scriptURL =
-"https://script.google.com/macros/s/AKfycbwGPM8r-7iJDWWBFZWhI8b-nC59dqJYCwGgf7aX9-tvLMWW3EWOJUMvMmac6WDLJmerfg/exec";
+"https://script.google.com/macros/s/AKfycbzZO73dVMSnPbQgrgVAxoH5uwdpPSet-eEyz-4x3Okd8E1rMtBQwouBRfuw-q_FZw2HQg/exec";
 
 let html5QrCode;
 let scannedItems = [];
@@ -153,12 +149,17 @@ let scannerLocked = false;
 let medicationLookup = {};
 window.lastLogs = [];
 
-// ---------------- LOAD MASTER ----------------
+// ---------------- LOAD MEDICATION MASTER ----------------
 
 async function loadMedicationMaster() {
+
   const res = await fetch(scriptURL);
   const data = await res.json();
+
   medicationLookup = data.meds || {};
+
+  window.lastLogs = data.logs || [];
+
 }
 
 loadMedicationMaster();
@@ -200,7 +201,7 @@ function onScan(decodedText) {
   updateList();
 
   document.getElementById("status").innerHTML =
-    "Scanned: " + decodedText + " → Press Add Another Scan";
+    "Scanned: " + decodedText + " → Click Add Another Scan";
 
 }
 
@@ -242,7 +243,7 @@ function updateList() {
 
 }
 
-// ---------------- MANUAL ----------------
+// ---------------- MANUAL ENTRY ----------------
 
 function addManualMedication() {
 
@@ -259,15 +260,18 @@ function addManualMedication() {
 
 }
 
-// ---------------- SUBMIT ----------------
+// ---------------- SUBMIT SESSION ----------------
 
 function submitSession() {
 
-  if (scannedItems.length === 0) return alert("No scans");
+  if (scannedItems.length === 0) {
+    alert("No scans");
+    return;
+  }
 
   const ward = document.getElementById("ward").value;
-  const bed = document.getElementById("bed").value;
-  const tube = document.getElementById("tube").value;
+  const bed = document.getElementById("bed").value || "UNASSIGNED";
+  const tube = document.getElementById("tube").value || "UNASSIGNED";
 
   scannedItems.forEach(code => {
 
@@ -294,7 +298,7 @@ function submitSession() {
 
 }
 
-// ---------------- LOAD DASHBOARD ----------------
+// ---------------- DASHBOARD ----------------
 
 async function loadSessions() {
 
@@ -357,7 +361,7 @@ function renderSessions(grouped) {
 
 }
 
-// ---------------- SEARCH (7 DAYS) ----------------
+// ---------------- SEARCH ----------------
 
 function searchLogs() {
 
