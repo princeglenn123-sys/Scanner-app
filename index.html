@@ -1,9 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Medication Scanner System</title>
+  <title>Medication Barcode Scanner System</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://unpkg.com/html5-qrcode"></script>
 
   <style>
     body {
@@ -50,12 +49,20 @@
     #status {
       font-weight: bold;
     }
+
+    /* hidden scanner input */
+    #barcodeInput {
+      position: absolute;
+      opacity: 0;
+      height: 0;
+      width: 0;
+    }
   </style>
 </head>
 
 <body>
 
-<h2>Medication Scanner</h2>
+<h2>Medication Barcode Scanner</h2>
 
 <label>Ward:</label>
 <select id="ward">
@@ -79,13 +86,10 @@ Tube: <input id="tube">
 
 <hr>
 
-<button onclick="startScanner()">Start Camera</button>
-<button onclick="unlockScanner()">Add Another Scan</button>
-<button onclick="stopScanner()">Stop Camera</button>
+<div id="status">Ready for barcode scan</div>
 
-<div id="status">Ready</div>
-
-<div id="reader" style="width:320px;"></div>
+<!-- 🔥 BARCODE SCANNER INPUT -->
+<input id="barcodeInput" autofocus placeholder="Scan here">
 
 <h3>Current Session</h3>
 <div id="list">No items yet</div>
@@ -134,17 +138,14 @@ Tube: <input id="tube">
 const scriptURL =
 "https://script.google.com/macros/s/AKfycbzZO73dVMSnPbQgrgVAxoH5uwdpPSet-eEyz-4x3Okd8E1rMtBQwouBRfuw-q_FZw2HQg/exec";
 
-let html5QrCode;
 let scannedItems = [];
 let sessionId = crypto.randomUUID();
-let scannerLocked = false;
-
 let medicationLookup = {};
 window.lastLogs = [];
 
-// ---------------- LOAD ----------------
+// ---------------- LOAD DATA ----------------
 
-async function loadMedicationMaster() {
+async function loadData() {
 
   const res = await fetch(scriptURL);
   const data = await res.json();
@@ -154,53 +155,36 @@ async function loadMedicationMaster() {
 
 }
 
-loadMedicationMaster();
+loadData();
 
-// ---------------- SCANNER ----------------
+// ---------------- BARCODE SCANNER ----------------
 
-function startScanner() {
+const input = document.getElementById("barcodeInput");
 
-  html5QrCode = new Html5Qrcode("reader");
+input.addEventListener("keydown", function(e) {
 
-  const config = {
-    fps: 10,
-    qrbox: 220
-  };
+  if (e.key === "Enter") {
 
-  Html5Qrcode.getCameras().then(devices => {
+    const code = input.value.trim();
 
-    let cam = devices[0].id;
+    if (!code) return;
 
-    devices.forEach(d => {
-      if (d.label.toLowerCase().includes("back")) cam = d.id;
-    });
+    scannedItems.push(code);
 
-    html5QrCode.start(cam, config, onScan);
-  });
-}
+    updateList();
 
-function onScan(code) {
+    document.getElementById("status").innerText =
+      "Scanned: " + code;
 
-  if (scannerLocked) return;
+    input.value = "";
+  }
 
-  scannerLocked = true;
-  scannedItems.push(code);
+});
 
-  updateList();
-
-  document.getElementById("status").innerText =
-    "Scanned → press Add Another Scan";
-
-}
-
-function unlockScanner() {
-  scannerLocked = false;
-  document.getElementById("status").innerText = "Ready";
-}
-
-function stopScanner() {
-  if (html5QrCode) html5QrCode.stop();
-}
+// keep focus alive (important for scanners)
+setInterval(() => {
+  input.focus();
+}, 1000);
 
 // ---------------- LIST ----------------
 
@@ -208,7 +192,7 @@ function updateList() {
 
   const el = document.getElementById("list");
 
-  if (scannedItems.length === 0) {
+  if (!scannedItems.length) {
     el.innerHTML = "No items yet";
     return;
   }
@@ -231,7 +215,7 @@ function updateList() {
 
 }
 
-// ---------------- MANUAL ----------------
+// ---------------- MANUAL ENTRY ----------------
 
 function addManualMedication() {
 
@@ -250,7 +234,10 @@ function addManualMedication() {
 
 function submitSession() {
 
-  if (!scannedItems.length) return alert("No scans");
+  if (!scannedItems.length) {
+    alert("No scans");
+    return;
+  }
 
   const ward = document.getElementById("ward").value;
   const bed = document.getElementById("bed").value || "UNASSIGNED";
@@ -277,11 +264,10 @@ function submitSession() {
   updateList();
 
   sessionId = crypto.randomUUID();
-  scannerLocked = false;
 
 }
 
-// ---------------- SEARCH ONLY ----------------
+// ---------------- SEARCH ----------------
 
 function searchLogs() {
 
