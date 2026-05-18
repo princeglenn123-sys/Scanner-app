@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Scanner App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
+  <style>
+    body {
+      font-family: Arial;
+      padding: 10px;
+    }
+
+    .box {
+      margin-bottom: 10px;
+    }
+
+    #list {
+      border: 1px solid #ccc;
+      padding: 10px;
+      min-height: 80px;
+    }
+
+    .item {
+      padding: 5px;
+      border-bottom: 1px solid #eee;
+    }
+
+    button {
+      margin-top: 10px;
+      padding: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+<h2>Medication Scanner</h2>
+
+<div class="box">
+  <label>Ward:</label>
+  <select id="ward">
+    <option value="76" selected>76</option>
+    <option value="77">77</option>
+    <option value="78">78</option>
+    <option value="79">79</option>
+    <option value="710">710</option>
+    <option value="85">85</option>
+    <option value="86">86</option>
+    <option value="87">87</option>
+    <option value="88">88</option>
+    <option value="89">89</option>
+    <option value="810">810</option>
+  </select>
+</div>
+
+<div class="box">
+  Bed: <input id="bed"><br><br>
+  Tube: <input id="tube">
+</div>
+
+<hr>
+
+<button onclick="startScanner()">Start Scanner</button>
+<button onclick="stopScanner()">Stop Scanner</button>
+
+<div id="reader" style="width:320px; margin-top:10px;"></div>
+
+<h3>Scanned Items</h3>
+<div id="list">No items yet</div>
+
+<button onclick="removeLast()">Remove Last</button>
+<button onclick="submitAll()">Submit All</button>
+
+<script>
+
+const scriptURL =
+"https://script.google.com/macros/s/AKfycbyXuM4gNu53UXGw1rWjpLQtB072EptNa77Py2ZBnOawvFUElmh3RTeRB1xiZGoC7a8dnA/exec";
+
+let html5QrCode;
+let scannedItems = [];
+let lastScanTime = 0;
+
+// update UI list
+function updateList() {
+  const list = document.getElementById("list");
+
+  if (scannedItems.length === 0) {
+    list.innerHTML = "No items yet";
+    return;
+  }
+
+  list.innerHTML = scannedItems
+    .map((item, i) => `<div class="item">${i+1}. ${item}</div>`)
+    .join("");
+}
+
+// handle scan
+function onScan(code) {
+  const now = Date.now();
+
+  // prevent duplicates (1.5 sec)
+  if (now - lastScanTime < 1500) return;
+  lastScanTime = now;
+
+  scannedItems.push(code);
+  updateList();
+
+  console.log("Scanned:", code);
+}
+
+// start scanner
+function startScanner() {
+  html5QrCode = new Html5Qrcode("reader");
+
+  const config = {
+    fps: 20,
+    qrbox: { width: 200, height: 200 },
+    aspectRatio: 1.0,
+    disableFlip: true
+  };
+
+  Html5Qrcode.getCameras().then(devices => {
+    let cameraId = devices[0].id;
+
+    devices.forEach(d => {
+      if (d.label.toLowerCase().includes("back") ||
+          d.label.toLowerCase().includes("rear")) {
+        cameraId = d.id;
+      }
+    });
+
+    html5QrCode.start(
+      cameraId,
+      config,
+      (decodedText) => onScan(decodedText)
+    );
+  });
+}
+
+// stop scanner
+function stopScanner() {
+  if (html5QrCode) {
+    html5QrCode.stop().then(() => html5QrCode.clear());
+  }
+}
+
+// remove last scan
+function removeLast() {
+  scannedItems.pop();
+  updateList();
+}
+
+// submit all
+function submitAll() {
+  if (scannedItems.length === 0) {
+    alert("No items to submit");
+    return;
+  }
+
+  const ward = document.getElementById("ward").value;
+  const bed = document.getElementById("bed").value;
+  const tube = document.getElementById("tube").value;
+
+  scannedItems.forEach(code => {
+    fetch(scriptURL, {
+      method: "POST",
+      body: JSON.stringify({
+        scanId: crypto.randomUUID(),
+        ward,
+        bed,
+        tube,
+        code
+      })
+    });
+  });
+
+  alert("Submitted " + scannedItems.length + " items");
+
+  scannedItems = [];
+  updateList();
+}
+
+</script>
+
+</body>
+</html>
