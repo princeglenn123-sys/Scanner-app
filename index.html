@@ -5,130 +5,398 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
-    body { font-family: Arial; padding: 10px; }
-
-    input, select, button {
-      padding: 8px;
-      margin: 5px 0;
-      width: 100%;
-      max-width: 350px;
+    :root {
+      color-scheme: light;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #111827;
+      background: #f8fafc;
     }
 
-    #list, #searchResults {
-      border: 1px solid #ccc;
-      padding: 10px;
-      margin-top: 10px;
-      max-height: 300px;
-      overflow-y: auto;
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top left, rgba(79, 70, 229, 0.12), transparent 28%),
+                  radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.08), transparent 32%),
+                  #f8fafc;
+      color: #111827;
+    }
+
+    .page {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 24px 20px 36px;
+    }
+
+    .header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+
+    .header h2 {
+      margin: 0;
+      font-size: clamp(1.75rem, 2.5vw, 2.5rem);
+      letter-spacing: -0.03em;
+    }
+
+    .header p {
+      margin: 10px 0 0;
+      max-width: 600px;
+      line-height: 1.65;
+      color: #475569;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 18px;
+      border-radius: 999px;
+      background: rgba(79, 70, 229, 0.09);
+      color: #4338ca;
+      font-weight: 700;
+      white-space: nowrap;
+      box-shadow: inset 0 0 0 1px rgba(79, 70, 229, 0.12);
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr);
+      gap: 24px;
+    }
+
+    .panel {
+      background: #ffffff;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      border-radius: 26px;
+      box-shadow: 0 20px 60 rgba(15, 23, 42, 0.06);
+      padding: 26px;
+    }
+
+    .panel h3 {
+      margin: 0 0 16px;
+      font-size: 1.05rem;
+      letter-spacing: 0.01em;
+      color: #111827;
+    }
+
+    .field-group {
+      display: grid;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #475569;
+    }
+
+    input,
+    select {
+      width: 100%;
+      border: 1px solid #d1d5db;
+      border-radius: 16px;
+      background: #f8fafc;
+      color: #111827;
+      padding: 14px 16px;
+      font-size: 0.98rem;
+      min-height: 48px;
+      transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    input:focus,
+    select:focus {
+      outline: none;
+      border-color: #6366f1;
+      background: #ffffff;
+      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+    }
+
+    button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: none;
+      border-radius: 14px;
+      padding: 14px 20px;
+      font-size: 0.98rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+      min-width: 140px;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    .primary {
+      background: #4f46e5;
+      color: #ffffff;
+      box-shadow: 0 18px 40 rgba(79, 70, 229, 0.18);
+    }
+
+    .secondary {
+      background: #eef2ff;
+      color: #4338ca;
+      box-shadow: inset 0 0 0 1px rgba(67, 56, 202, 0.12);
+    }
+
+    .section-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    #list,
+    #searchResults {
+      display: grid;
+      gap: 14px;
+      margin-top: 8px;
+      overflow: hidden;
+      width: 100%;
     }
 
     .card {
-      border: 1px solid #ddd;
-      padding: 10px;
-      margin-bottom: 8px;
-    }
-
-    #status {
-      font-weight: bold;
-      margin: 10px 0;
-    }
-
-    #barcodeInput {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 18px;
+      border-radius: 18px;
+      border: 1px solid #e5e7eb;
+      background: #f8fafc;
       width: 100%;
+      word-break: break-word;
+    }
+
+    .card button {
+      min-width: 44px;
+      width: 44px;
+      padding: 0;
+      border: 1px solid rgba(248, 113, 113, 0.25);
+      background: #fff1f2;
+      color: #b91c1c;
+      box-shadow: none;
+    }
+
+    .panel-block + .panel-block {
+      margin-top: 24px;
+    }
+
+    .panel-block {
+      display: grid;
+      gap: 16px;
+    }
+
+    @media (max-width: 960px) {
+      .content-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .row {
+        grid-template-columns: 1fr;
+      }
+
+      button,
+      input,
+      select {
+        width: 100%;
+      }
+
+      .header {
+        align-items: stretch;
+      }
     }
   </style>
 </head>
 
 <body>
+  <div class="page">
+    <div class="header">
+      <div>
+        <h2>Medication Scanner System</h2>
+        <p>Start scanning once and the page automatically pauses when you enter ward, tube, manual data, or use search.</p>
+      </div>
+      <div id="status" class="status-pill">Scanner OFF</div>
+    </div>
 
-<h2>Medication Scanner System</h2>
+    <div class="content-grid">
+      <section class="panel">
+        <div class="field-group">
+          <div>
+            <label for="ward">Ward</label>
+            <select id="ward">
+              <option value="76">76</option>
+              <option value="77">77</option>
+              <option value="78">78</option>
+              <option value="79">79</option>
+              <option value="710">710</option>
+              <option value="85">85</option>
+              <option value="86">86</option>
+              <option value="87">87</option>
+              <option value="88">88</option>
+              <option value="89">89</option>
+              <option value="810">810</option>
+            </select>
+          </div>
 
-<label>Ward:</label>
-<select id="ward">
-  <option value="76">76</option>
-  <option value="77">77</option>
-  <option value="78">78</option>
-  <option value="79">79</option>
-  <option value="710">710</option>
-  <option value="85">85</option>
-  <option value="86">86</option>
-  <option value="87">87</option>
-  <option value="88">88</option>
-  <option value="89">89</option>
-  <option value="810">810</option>
-</select>
+          <div class="row">
+            <div>
+              <label for="bed">Bed</label>
+              <input id="bed" placeholder="Bed number">
+            </div>
+            <div>
+              <label for="tube">Tube</label>
+              <input id="tube" placeholder="Tube code">
+            </div>
+          </div>
+        </div>
 
-<br>
+        <div class="field-group">
+          <label for="barcodeInput">Scan or type barcode</label>
+          <input id="barcodeInput" placeholder="Scan here" autocomplete="off">
+        </div>
 
-Bed: <input id="bed">
-Tube: <input id="tube">
+        <div class="section-footer">
+          <button id="startButton" class="primary" onclick="startScanner()">Start Scanner</button>
+        </div>
 
-<hr>
+        <h3>Session Items</h3>
+        <div id="list">No items</div>
 
-<div id="status">Scanner OFF</div>
+        <div class="section-footer">
+          <button
+  id="submitButton"
+  class="secondary"
+  onclick="submitSession()"
+>
+  Submit
+</button>
+        </div>
+      </section>
 
-<input id="barcodeInput" placeholder="Scan here">
+      <aside class="panel">
+        <div class="panel-block">
+          <h3>Manual Entry</h3>
+          <div class="field-group">
+            <input id="manualMed" placeholder="Manual medication">
+            <button class="primary" onclick="addManual()">Add Manual</button>
+          </div>
+        </div>
 
-<br>
+        <div class="panel-block">
+          <h3>Search Last 7 Days</h3>
+          <div class="field-group">
+            <input id="searchMed" placeholder="Medication">
+            <select id="searchWard">
+              <option value="">All Wards</option>
+              <option value="76">76</option>
+              <option value="77">77</option>
+              <option value="78">78</option>
+              <option value="79">79</option>
+              <option value="710">710</option>
+              <option value="85">85</option>
+              <option value="86">86</option>
+              <option value="87">87</option>
+              <option value="88">88</option>
+              <option value="89">89</option>
+              <option value="810">810</option>
+            </select>
+            <input id="searchTube" placeholder="Tube (optional)">
+            <button class="primary" onclick="searchLogs()">Search</button>
+          </div>
+          <div id="searchResults"></div>
+        </div>
+<div class="panel-block">
+  <h3>Update Medication Master (CSV)</h3>
 
-<button onclick="startScanner()">Start Scanner</button>
+<div class="field-group">
+  <input type="file" id="medCsvFile" accept=".csv" />
+  <button id="uploadBtn" class="primary" onclick="uploadMedCSV()">
+    Upload CSV
+  </button>
+</div>
+  </div>
+<div class="panel-block">
+  <h3>Update Medication Master (Paste)</h3>
 
-<h3>Session Items</h3>
-<div id="list">No items</div>
+  <div class="field-group">
+    <textarea id="medPasteArea" rows="8"
+      placeholder="Paste from Excel / Google Sheets here (code + name columns)..."></textarea>
 
-<button onclick="submitSession()">Submit</button>
+    <button class="primary" onclick="uploadMedPaste()">
+      Update from Paste
+    </button>
+  </div>
+</div>
+  </small>
+</div>
 
-<hr>
-
-<h3>Manual Entry</h3>
-<input id="manualMed" placeholder="Manual medication">
-<button onclick="addManual()">Add Manual</button>
-
-<hr>
-
-<h3>Search Last 7 Days</h3>
-
-<input id="searchMed" placeholder="Medication">
-<br>
-
-<select id="searchWard">
-  <option value="">All Wards</option>
-  <option value="76">76</option>
-  <option value="77">77</option>
-  <option value="78">78</option>
-  <option value="79">79</option>
-  <option value="710">710</option>
-  <option value="85">85</option>
-  <option value="86">86</option>
-  <option value="87">87</option>
-  <option value="88">88</option>
-  <option value="89">89</option>
-  <option value="810">810</option>
-</select>
-
-<br>
-
-<input id="searchTube" placeholder="Tube (optional)">
-<br>
-
-<button onclick="searchLogs()">Search</button>
-
-<div id="searchResults"></div>
+      </aside>
+    </div>
+  </div>
 
 <script>
 
 const scriptURL =
 "https://script.google.com/macros/s/AKfycbz2hJi7b7T519dgO0PcZuyp4UJab-c25C8S5twVSK-g3DpovxtoWapD37S-gH7FJ3R4zQ/exec";
 
-let scannedItems = [];
+let sessionItems = [];
 let sessionId = crypto.randomUUID();
+let medicationLookup = {};
+window.lastLogs = [];
 
 let scannerActive = false;
+let scannerPaused = false;
 let resumeTimer = null;
+
+let isSubmitting= false;
+let isUploadingMedCSV = false;
+
+
+async function loadData() {
+  try {
+    const res = await fetch(scriptURL);
+    const data = await res.json();
+    medicationLookup = data.meds || {};
+    window.lastLogs = data.logs || [];
+  } catch (err) {
+    console.error("Failed to load logs", err);
+  }
+}
+
+loadData();
+
+const barcodeInput = document.getElementById("barcodeInput");
 
 // ---------------- START SCANNER ----------------
 function startScanner() {
+  if (scannerActive) return;
   scannerActive = true;
+  scannerPaused = false;
+  document.getElementById("startButton").disabled = true;
   setStatus("Scanner ON");
   focusScanner();
 }
@@ -140,60 +408,100 @@ function setStatus(text) {
 
 // ---------------- FOCUS SCANNER ----------------
 function focusScanner() {
-  if (!scannerActive) return;
-
-  const active = document.activeElement;
-  const isTyping = ["INPUT", "SELECT", "TEXTAREA"].includes(active.tagName);
-
-  if (!isTyping) {
-    document.getElementById("barcodeInput").focus();
-  }
+  if (!scannerActive || scannerPaused) return;
+  barcodeInput.focus();
 }
 
-// ---------------- PAUSE + AUTO RESUME ----------------
-function pauseAndResume() {
-
-  if (!scannerActive) return;
-
+function pauseScanner() {
+  if (!scannerActive || scannerPaused) return;
+  scannerPaused = true;
   setStatus("Scanner Paused");
+  scheduleAutoResume();
+}
 
+function resumeScanner() {
+  if (!scannerActive || !scannerPaused) return;
+  scannerPaused = false;
+  setStatus("Scanner ON");
+  focusScanner();
+}
+
+function scheduleAutoResume(delay = 1200) {
   clearTimeout(resumeTimer);
-
   resumeTimer = setTimeout(() => {
-    setStatus("Scanner ON");
-    focusScanner();
-  }, 1200);
+    if (!scannerActive || !scannerPaused) return;
+
+    const active = document.activeElement;
+    if (!active || active === barcodeInput) {
+      resumeScanner();
+      return;
+    }
+
+    if (active.matches("input, select, textarea")) {
+      scheduleAutoResume(500);
+      return;
+    }
+
+    resumeScanner();
+  }, delay);
+}
+
+function interactionComplete() {
+  if (!scannerActive) return;
+  scheduleAutoResume(600);
 }
 
 // ---------------- ATTACH EVENTS ----------------
 document.addEventListener("DOMContentLoaded", () => {
-
   document.querySelectorAll("input, select, textarea, button").forEach(el => {
+    el.addEventListener("focus", () => {
+      if (!scannerActive) return;
+      if (el === barcodeInput) {
+        resumeScanner();
+      } else if (el.id !== "startButton") {
+        pauseScanner();
+      }
+    });
 
-    el.addEventListener("focus", pauseAndResume);
-    el.addEventListener("click", pauseAndResume);
-    el.addEventListener("input", pauseAndResume);
-
+    el.addEventListener("blur", () => {
+      if (!scannerActive) return;
+      setTimeout(() => {
+        const active = document.activeElement;
+        if (!active || !active.matches("input, select, textarea, button")) {
+          scheduleAutoResume(200);
+        }
+      }, 0);
+    });
   });
 
+  // Enter key should submit the search form
+  ["searchMed", "searchTube", "searchWard"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener("keydown", event => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          searchLogs();
+        }
+      });
+    }
+  });
 });
 
 // ---------------- SCAN INPUT ----------------
-const input = document.getElementById("barcodeInput");
-
-input.addEventListener("keydown", function(e) {
+barcodeInput.addEventListener("keydown", function(e) {
 
   if (!scannerActive) return;
 
   if (e.key !== "Enter") return;
 
-  const code = input.value.trim();
+  const code = barcodeInput.value.trim();
   if (!code) return;
 
-  scannedItems.push(code);
+  sessionItems.push({ type: "scan", text: code });
   updateList();
 
-  input.value = "";
+  barcodeInput.value = "";
 
   focusScanner();
 });
@@ -203,21 +511,43 @@ function updateList() {
 
   const el = document.getElementById("list");
 
-  if (!scannedItems.length) {
+  if (!sessionItems.length) {
     el.innerHTML = "No items";
     return;
   }
 
-  el.innerHTML = scannedItems.map((c, i) => `
+el.innerHTML = sessionItems.map((item, i) => {
+
+  let displayText;
+
+  if (item.type === "scan") {
+    const medName = medicationLookup[item.text] || "[NOT IN FORMULARY:MANUAL ENTRY]";
+
+    displayText = `
+      <div>
+        <b>${i + 1}. ${medName}</b><br>
+        <small>${item.text}</small>
+      </div>
+    `;
+  } else {
+    displayText = `
+      <div>
+        <b>${i + 1}. ${item.text}</b>
+      </div>
+    `;
+  }
+
+  return `
     <div class="card">
-      ${i + 1}. ${c}
+      ${displayText}
       <button onclick="removeItem(${i})">❌</button>
     </div>
-  `).join("");
+  `;
+}).join("");
 }
 
 function removeItem(i) {
-  scannedItems.splice(i, 1);
+  sessionItems.splice(i, 1);
   updateList();
 }
 
@@ -227,49 +557,281 @@ function addManual() {
   const val = document.getElementById("manualMed").value.trim();
   if (!val) return;
 
-  scannedItems.push("MANUAL:" + val);
+  sessionItems.push({ type: "manual", text: `MANUAL: ${val}` });
 
   document.getElementById("manualMed").value = "";
 
   updateList();
+  interactionComplete();
 }
 
 // ---------------- SUBMIT ----------------
 async function submitSession() {
 
+  if (isSubmitting) {
+    return;
+  }
+
   const ward = document.getElementById("ward").value;
   const bed = document.getElementById("bed").value || "NA";
   const tube = document.getElementById("tube").value || "NA";
 
-  if (scannedItems.length === 0) {
+  if (sessionItems.length === 0) {
     alert("No items to submit");
     return;
   }
 
-  for (const code of scannedItems) {
+  isSubmitting = true;
 
-    await fetch(scriptURL, {
+  const submitBtn = document.getElementById("submitButton");
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Submitting...";
+
+  try {
+
+    const itemsToSubmit = [...sessionItems];
+
+    for (const item of itemsToSubmit) {
+
+      const response = await fetch(scriptURL, {
+        method: "POST",
+        body: JSON.stringify({
+          scanId: sessionId,
+          ward,
+          bed,
+          tube,
+          code: item.text
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server returned ${response.status}`);
+      }
+    }
+
+    alert("Submitted");
+
+    sessionItems = [];
+    updateList();
+
+    sessionId = crypto.randomUUID();
+
+    await loadData();
+
+  } catch (err) {
+
+    console.error(err);
+    alert(`Submit failed: ${err.message}`);
+
+  } finally {
+
+    isSubmitting = false;
+
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Submit";
+  }
+}
+// ---------------- SEARCH ----------------
+function searchLogs() {
+  const medInput = document.getElementById("searchMed").value.trim().toLowerCase();
+  const wardInput = document.getElementById("searchWard").value;
+  const tubeInput = document.getElementById("searchTube").value.trim().toLowerCase();
+
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 7);
+
+  const results = window.lastLogs.filter(r => {
+    const time = new Date(r.time);
+    if (time < cutoff) return false;
+
+    const wardMatch = !wardInput || r.ward == wardInput;
+    const tubeMatch = !tubeInput || (r.tube || "").toLowerCase().includes(tubeInput);
+
+    let med;
+    if (r.code.startsWith("MANUAL:")) {
+      med = r.code.replace("MANUAL:", "");
+    } else {
+      med = medicationLookup[r.code] || r.code;
+    }
+
+    const medMatch = !medInput || med.toLowerCase().includes(medInput);
+
+    return wardMatch && tubeMatch && medMatch;
+  });
+
+  const el = document.getElementById("searchResults");
+  if (!results.length) {
+    el.innerHTML = "No results";
+    return;
+  }
+
+  el.innerHTML = results.map(r => {
+    let med;
+    if (r.code.startsWith("MANUAL:")) {
+      med = r.code.replace("MANUAL:", "");
+    } else {
+      med = medicationLookup[r.code] || r.code;
+    }
+
+    return `
+      <div class="card">
+        <b>Date:</b> ${new Date(r.time).toLocaleString()}<br>
+        <b>Ward:</b> ${r.ward} | <b>Tube:</b> ${r.tube}<br>
+        <b>Medication:</b> ${med}
+      </div>
+    `;
+  }).join("");
+}
+async function uploadMedCSV() {
+
+  if (isUploadingMedCSV) return;
+  isUploadingMedCSV = true;
+
+ const uploadBtn = document.getElementById("uploadBtn");
+
+if (!uploadBtn) {
+  console.error("Upload button not found in HTML (check id='uploadBtn')");
+  return;
+}
+  uploadBtn.disabled = true;
+  uploadBtn.textContent = "Uploading...";
+
+  try {
+
+    const confirmation = prompt(
+      "Enter confirmation code to update Medication Master:"
+    );
+
+    if (confirmation !== "Pharmacy") {
+      alert("Incorrect confirmation code");
+      return;
+    }
+
+    const fileInput = document.getElementById("medCsvFile");
+
+    if (!fileInput.files.length) {
+      alert("Please select a CSV file");
+      return;
+    }
+
+    const text = await fileInput.files[0].text();
+
+    const rows = text
+      .split("\n")
+      .map(r => r.trim())
+      .filter(r => r);
+
+    const list = [];
+
+    for (const row of rows) {
+      const parts = row.split(",");
+
+      const code = parts[parts.length - 1]?.trim();
+      const name = parts.slice(0, parts.length - 1).join(",").trim();
+
+      if (!code || !name) continue;
+
+      list.push({
+        code: code.trim(),
+        name: name.trim()
+      });
+    }
+
+    const res = await fetch(scriptURL, {
       method: "POST",
-      headers: {"Content-Type": "application/json"},
       body: JSON.stringify({
-        scanId: sessionId,
-        ward,
-        bed,
-        tube,
-        code
+        action: "mergeMedMaster",
+        list: list
       })
     });
 
+    if (!res.ok) throw new Error("Upload failed");
+
+    alert("Medication master updated successfully");
+
+    await loadData();
+
+  } catch (err) {
+    console.error(err);
+    alert("Upload failed: " + err.message);
+
+  } finally {
+    isUploadingMedCSV = false;
+    uploadBtn.disabled = false;
+    uploadBtn.textContent = "Upload CSV";
   }
-
-  alert("Submitted");
-
-  scannedItems = [];
-  updateList();
-  sessionId = crypto.randomUUID();
 }
+async function uploadMedPaste() {
 
+  if (isUploadingMedCSV) return;
+  isUploadingMedCSV = true;
+
+  const btn = document.querySelector("button[onclick='uploadMedPaste()']");
+  btn.disabled = true;
+  btn.textContent = "Updating...";
+
+  try {
+
+    const confirmation = prompt("Enter confirmation code to update Medication Master:");
+    if (confirmation !== "Pharmacy") {
+      alert("Incorrect confirmation code");
+      return;
+    }
+
+    const text = document.getElementById("medPasteArea").value.trim();
+
+    if (!text) {
+      alert("Nothing pasted");
+      return;
+    }
+
+    // detect tab (Excel/Sheets) or comma
+    const rows = text.split("\n").map(r => r.trim()).filter(Boolean);
+
+    const list = [];
+
+    for (const row of rows) {
+
+      const delimiter = row.includes("\t") ? "\t" : ",";
+      const parts = row.split(delimiter).map(x => x.trim());
+
+      if (parts.length < 2) continue;
+
+      // assume LAST column = code (same logic as your CSV upload)
+      const code = parts[parts.length - 1];
+      const name = parts.slice(0, -1).join(" ");
+
+      if (!code || !name) continue;
+
+      list.push({ code, name });
+    }
+
+    const res = await fetch(scriptURL, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "mergeMedMaster",
+        list
+      })
+    });
+
+    if (!res.ok) throw new Error("Upload failed");
+
+    alert("Medication master updated successfully (paste)");
+
+    await loadData();
+
+    document.getElementById("medPasteArea").value = "";
+
+  } catch (err) {
+    console.error(err);
+    alert("Paste update failed: " + err.message);
+
+  } finally {
+    isUploadingMedCSV = false;
+    btn.disabled = false;
+    btn.textContent = "Update from Paste";
+  }
+}
 </script>
-
 </body>
 </html>
